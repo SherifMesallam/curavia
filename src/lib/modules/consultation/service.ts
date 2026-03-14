@@ -118,6 +118,24 @@ export async function getPatientConsultations(patientProfileId: string) {
   });
 }
 
+export async function getProviderConsultations(providerUserId: string) {
+  const provider = await prisma.providerProfile.findFirst({
+    where: { userId: providerUserId },
+    include: { doctors: { select: { id: true } } },
+  });
+  if (!provider) return [];
+  const doctorIds = provider.doctors.map((d) => d.id);
+  return prisma.consultationRequest.findMany({
+    where: { doctorId: { in: doctorIds } },
+    include: {
+      patient: { include: { user: true } },
+      doctor: { include: { clinic: true, specialization: true } },
+      inquiryCase: { include: { procedure: true, specialization: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 export async function getAdminConsultations() {
   return prisma.consultationRequest.findMany({
     include: {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
-import { createConsultationRequest } from "@/lib/modules/consultation/service";
+import { bookConsultation } from "@/lib/modules/consultation/service";
 
 /**
  * POST /api/consultations/request
@@ -32,11 +32,11 @@ export async function POST(request: Request) {
       );
     }
 
-    const consultation = await createConsultationRequest(
-      inquiryCaseId,
-      doctorId,
+    const consultation = await bookConsultation(
       patientProfile.id,
-      patientNotes
+      doctorId,
+      patientNotes,
+      inquiryCaseId
     );
 
     return NextResponse.json({ success: true, consultation });

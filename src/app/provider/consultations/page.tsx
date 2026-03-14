@@ -51,16 +51,16 @@ export default async function ProviderConsultationsPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="font-medium">
-                      {cr.inquiryCase.patient.user.firstName} {cr.inquiryCase.patient.user.lastName}
+                      {cr.patient.user.firstName} {cr.patient.user.lastName}
                     </p>
                     <Badge variant="outline">
                       {STATUS_LABELS[cr.status] ?? cr.status}
                     </Badge>
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">
-                    {cr.inquiryCase.procedure?.name ?? cr.inquiryCase.specialization?.name ?? "Medical inquiry"}
+                    {cr.inquiryCase?.procedure?.name ?? cr.inquiryCase?.specialization?.name ?? "Medical inquiry"}
                     {" • "}
-                    {cr.inquiryCase.patient.user.email}
+                    {cr.patient.user.email}
                   </p>
                   {cr.patientNotes && (
                     <p className="text-sm mt-2 italic">&quot;{cr.patientNotes}&quot;</p>

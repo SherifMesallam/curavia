@@ -34,7 +34,7 @@ export async function POST(
   }
 
   try {
-    const consultation = await completeConsultation(id, cr.doctorId);
+    const consultation = await completeConsultation(id);
     return NextResponse.json({ success: true, consultation });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to complete consultation";
