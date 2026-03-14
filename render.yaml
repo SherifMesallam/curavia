@@ -8,19 +8,10 @@ services:
     startCommand: npm start
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: curavia-db
-          property: connectionString
+        sync: false  # set manually in Render dashboard from your existing Postgres instance
       - key: SESSION_SECRET
         generateValue: true
       - key: NODE_ENV
         value: production
       - key: NEXT_PUBLIC_APP_URL
         value: https://curavia.onrender.com  # update after your service is created
-
-databases:
-  - name: curavia-db
-    databaseName: curavia
-    user: curavia
-    region: frankfurt
-    plan: free
