@@ -215,7 +215,7 @@ export default async function PatientDashboardPage() {
                           {c.doctor.clinic?.name ?? "Clinic"}
                         </p>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          {c.inquiryCase.procedure?.name ?? "Consultation"}
+                          {c.inquiryCase?.procedure?.name ?? "Consultation"}
                         </p>
                         <span className={`mt-2 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${
                           c.status === "CONFIRMED"

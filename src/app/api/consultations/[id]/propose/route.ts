@@ -41,7 +41,7 @@ export async function POST(
       return NextResponse.json({ error: "proposedAt is required (ISO date string)" }, { status: 400 });
     }
 
-    const consultation = await proposeTime(cr.id, new Date(proposedAt), cr.doctorId);
+    const consultation = await proposeTime(cr.id, new Date(proposedAt));
     return NextResponse.json({ success: true, consultation });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to propose time";

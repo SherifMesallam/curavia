@@ -139,7 +139,7 @@ export default async function InquiryDetailPage({
         {/* Travel package — shown when admin publishes one */}
         {travelPackage && (
           <PackageView
-            travelPackage={travelPackage}
+            travelPackage={{ ...travelPackage, price: Number(travelPackage.price) }}
             recommendedDoctors={recommendedDoctors}
             inquiryId={id}
             initialSelectedDoctorId={selectedDoctorId.selected}
