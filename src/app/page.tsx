@@ -32,33 +32,38 @@ export default async function HomePage() {
       {/* Hero */}
       <ParallaxHero>
         {/* Content */}
-        <div className="container relative z-10 flex flex-1 items-center py-20 md:py-28">
-          <div className="max-w-2xl">
-            <h1 className="font-display font-bold text-4xl text-white md:text-5xl lg:text-6xl leading-[1.1] tracking-tight drop-shadow">
-              Premium Dental &amp; LASIK
-              <br />Care in Egypt
+        <div className="container relative z-10 flex flex-1 items-center py-16 md:py-28">
+          <div className="max-w-2xl w-full">
+            {/* Headline — single clean line on mobile, natural break on desktop */}
+            <h1 className="font-display font-bold text-[2rem] leading-[1.15] sm:text-4xl md:text-5xl lg:text-6xl text-white tracking-tight drop-shadow">
+              Premium Dental &amp;&nbsp;LASIK
+              <br className="hidden sm:block" />{" "}
+              Care in Egypt
             </h1>
-            <p className="mt-4 text-lg font-semibold text-teal-300">
-              Save up to 80% compared to US &amp; Europe
+
+            <p className="mt-4 text-base sm:text-lg font-semibold text-teal-300 whitespace-nowrap">
+              Save up to 80% vs US &amp; Europe
             </p>
-              <p className="mt-3 text-base text-white/80 leading-relaxed max-w-lg">
+
+            <p className="mt-3 text-sm sm:text-base text-white/80 leading-relaxed max-w-lg">
               Consult vetted Egyptian specialists and receive full travel coordination for your treatment and recovery.
             </p>
 
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Button size="lg" className="bg-teal-600 hover:bg-teal-500 font-semibold px-7 shadow-lg" asChild>
+            {/* CTAs — stack on mobile, side by side on sm+ */}
+            <div className="mt-7 flex flex-col sm:flex-row gap-3">
+              <Button size="lg" className="bg-teal-600 hover:bg-teal-500 font-semibold px-7 shadow-lg w-full sm:w-auto" asChild>
                 <Link href={getStartedHref}>
                   Get Started
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" className="border-white/50 bg-white/10 text-white hover:bg-white/20 hover:text-white backdrop-blur-sm px-7 font-semibold" asChild>
+              <Button size="lg" variant="outline" className="border-white/50 bg-white/10 text-white hover:bg-white/20 hover:text-white backdrop-blur-sm px-7 font-semibold w-full sm:w-auto" asChild>
                 <Link href="/doctors">Browse Doctors</Link>
               </Button>
             </div>
 
-            {/* Trust badges */}
-            <div className="mt-8 grid grid-cols-2 gap-x-8 gap-y-2.5 text-sm text-white/90">
+            {/* Trust badges — single column on mobile, 2-col on sm+ */}
+            <div className="mt-7 flex flex-col sm:grid sm:grid-cols-2 gap-y-2 gap-x-8 text-sm text-white/90">
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4 text-teal-400 shrink-0" />
                 Verified Clinics
