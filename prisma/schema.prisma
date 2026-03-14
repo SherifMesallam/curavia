@@ -1,0 +1,501 @@
+// Curavia - Medical Tourism Platform
+// Dental and LASIK procedures in Egypt
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============ ENUMS ============
+
+enum UserRole {
+  PATIENT
+  PROVIDER
+  ADMIN
+}
+
+enum ProviderStatus {
+  PENDING
+  REQUEST_INFO
+  APPROVED
+  REJECTED
+}
+
+enum InquiryStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  MATCHED
+  CONSULTATION_REQUESTED
+  PACKAGE_PREPARED
+  CLOSED
+}
+
+enum ConsultationStatus {
+  REQUESTED           // Patient submitted request
+  PENDING_CONFIRMATION // Provider proposed time, awaiting patient
+  CONFIRMED           // Both agreed on time
+  COMPLETED           // Consultation done
+  CANCELLED
+}
+
+enum PackageStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CredentialType {
+  LICENSE
+  CERTIFICATION
+  DEGREE
+  INSURANCE
+  OTHER
+}
+
+enum ReviewStatus {
+  PENDING   // Awaiting moderation
+  APPROVED  // Visible to public
+  REJECTED  // Rejected by admin
+  HIDDEN    // Hidden from public (admin action)
+  FLAGGED   // Flagged for review
+}
+
+// ============ USER & PROFILES ============
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole
+  firstName    String   @map("first_name")
+  lastName     String   @map("last_name")
+  phone        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  patientProfile  PatientProfile?
+  providerProfile ProviderProfile?
+  medicalFiles       MedicalFile[]       @relation("MedicalFileUploader")
+  vettingReviews     VettingReview[]     @relation("VettingReviewer")
+  adminNotes         AdminNote[]
+  matchRecommendations MatchRecommendation[] @relation("MatchRecommender")
+  providerOnboardingDraft ProviderOnboardingDraft?
+  messages           Message[]
+
+  @@index([email])
+  @@index([role])
+}
+
+model PatientProfile {
+  id        String   @id @default(cuid())
+  userId    String   @unique @map("user_id")
+  bio       String?
+  country   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  inquiryCases         InquiryCase[]
+  reviews              Review[]
+  consultationRequests ConsultationRequest[]
+
+  @@index([userId])
+}
+
+model ProviderProfile {
+  id        String         @id @default(cuid())
+  userId    String         @unique @map("user_id")
+  status    ProviderStatus @default(PENDING)
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clinic     Clinic?
+  doctors    Doctor[]
+  credentials CredentialDocument[]
+  vettingReviews VettingReview[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ============ PROVIDERS ============
+
+model Clinic {
+  id          String         @id @default(cuid())
+  providerId  String         @unique @map("provider_id")
+  name        String
+  slug        String         @unique
+  address     String?
+  city        String
+  country     String         @default("Egypt")
+  phone       String?
+  website     String?
+  description String?
+  status      ProviderStatus @default(PENDING)
+  approvedAt  DateTime?      @map("approved_at")
+  approvedById String?       @map("approved_by_id")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  provider   ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  doctors    Doctor[]
+  credentials CredentialDocument[]
+  vettingReviews VettingReview[]
+  reviews    Review[]
+  facilityImages FacilityImage[]
+
+  @@index([slug])
+  @@index([status])
+  @@index([city])
+}
+
+model Doctor {
+  id               String         @id @default(cuid())
+  providerId       String         @map("provider_id")
+  clinicId         String?        @map("clinic_id")
+  specializationId String?       @map("specialization_id")
+  firstName        String         @map("first_name")
+  lastName         String         @map("last_name")
+  slug             String         @unique
+  bio              String?
+  yearsExperience  Int?           @map("years_experience")
+  licenseNumber    String?        @map("license_number")
+  status           ProviderStatus @default(PENDING)
+  approvedAt       DateTime?      @map("approved_at")
+  approvedById     String?        @map("approved_by_id")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  provider       ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  clinic         Clinic?         @relation(fields: [clinicId], references: [id], onDelete: SetNull)
+  specialization Specialization? @relation(fields: [specializationId], references: [id], onDelete: SetNull)
+  procedures     DoctorProcedure[]
+  credentials    CredentialDocument[]
+  vettingReviews VettingReview[]
+  matchRecommendations MatchRecommendation[]
+  consultationRequests ConsultationRequest[]
+  reviews              Review[]
+  preferredInquiries   InquiryCase[]         @relation("PreferredDoctor")
+  selectedInquiries    InquiryCase[]         @relation("SelectedDoctor")
+
+  @@index([slug])
+  @@index([providerId])
+  @@index([clinicId])
+  @@index([specializationId])
+  @@index([status])
+}
+
+// ============ SPECIALIZATIONS & PROCEDURES ============
+
+model Specialization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  doctors     Doctor[]
+  procedures  Procedure[]
+  inquiryCases InquiryCase[]
+
+  @@index([slug])
+}
+
+model Procedure {
+  id               String   @id @default(cuid())
+  specializationId String  @map("specialization_id")
+  name             String
+  slug             String  @unique
+  description      String?
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  specialization Specialization @relation(fields: [specializationId], references: [id], onDelete: Cascade)
+  doctors        DoctorProcedure[]
+  inquiryCases   InquiryCase[]
+
+  @@index([slug])
+  @@index([specializationId])
+}
+
+model DoctorProcedure {
+  doctorId    String   @map("doctor_id")
+  procedureId String  @map("procedure_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  doctor    Doctor    @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  procedure Procedure @relation(fields: [procedureId], references: [id], onDelete: Cascade)
+
+  @@id([doctorId, procedureId])
+  @@index([procedureId])
+}
+
+// ============ VETTING ============
+
+model CredentialDocument {
+  id        String        @id @default(cuid())
+  doctorId  String?       @map("doctor_id")
+  clinicId  String?       @map("clinic_id")
+  providerId String?      @map("provider_id")
+  type      CredentialType
+  fileKey   String        @map("file_key")
+  fileName  String        @map("file_name")
+  createdAt DateTime      @default(now()) @map("created_at")
+  updatedAt DateTime      @updatedAt @map("updated_at")
+
+  doctor    Doctor?          @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  clinic    Clinic?          @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  provider  ProviderProfile? @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId])
+  @@index([clinicId])
+  @@index([providerId])
+}
+
+model VettingReview {
+  id         String   @id @default(cuid())
+  doctorId   String?  @map("doctor_id")
+  clinicId   String?  @map("clinic_id")
+  providerId String? @map("provider_id")
+  reviewerId String  @map("reviewer_id")
+  decision   ProviderStatus
+  notes      String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  doctor    Doctor?          @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  clinic    Clinic?          @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  provider  ProviderProfile? @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  reviewer  User             @relation("VettingReviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId])
+  @@index([clinicId])
+  @@index([providerId])
+  @@index([reviewerId])
+}
+
+// ============ INQUIRY FLOW ============
+
+model InquiryCase {
+  id               String        @id @default(cuid())
+  patientId        String        @map("patient_id")
+  procedureId      String?       @map("procedure_id")
+  specializationId String?      @map("specialization_id")
+  message          String?
+  caseDescription  String?      @map("case_description")
+  patientCountry   String?      @map("patient_country")
+  preferredCity    String?      @map("preferred_city")  // e.g. Cairo, Alexandria
+  age              Int?
+  budgetMin        Decimal?     @map("budget_min") @db.Decimal(12, 2)
+  budgetMax        Decimal?     @map("budget_max") @db.Decimal(12, 2)
+  travelDateStart  DateTime?    @map("travel_date_start") @db.Date
+  travelDateEnd    DateTime?    @map("travel_date_end") @db.Date
+  preferredDoctorId        String?      @map("preferred_doctor_id")
+  selectedDoctorId         String?      @map("selected_doctor_id")
+  consentAgreed            Boolean      @default(false) @map("consent_agreed")
+  contactPhone             String?      @map("contact_phone")
+  contactEmail             String?      @map("contact_email")
+  preferredContactMethods  String?      @map("preferred_contact_methods") // JSON array of methods
+  contactWhatsapp          String?      @map("contact_whatsapp")
+  contactTelegram          String?      @map("contact_telegram")
+  contactOther             String?      @map("contact_other")
+  status           InquiryStatus @default(SUBMITTED)
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  patient          PatientProfile     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  procedure        Procedure?         @relation(fields: [procedureId], references: [id], onDelete: SetNull)
+  specialization   Specialization?    @relation(fields: [specializationId], references: [id], onDelete: SetNull)
+  preferredDoctor  Doctor?            @relation("PreferredDoctor", fields: [preferredDoctorId], references: [id], onDelete: SetNull)
+  selectedDoctor   Doctor?            @relation("SelectedDoctor", fields: [selectedDoctorId], references: [id], onDelete: SetNull)
+  messages         Message[]
+  medicalFiles MedicalFile[]
+  matchRecommendations MatchRecommendation[]
+  consultationRequests ConsultationRequest[]
+  travelPackages TravelPackage[]
+  reviews      Review[]
+
+  @@index([patientId])
+  @@index([procedureId])
+  @@index([specializationId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model MedicalFile {
+  id          String   @id @default(cuid())
+  inquiryCaseId String @map("inquiry_case_id")
+  fileKey     String   @map("file_key")
+  fileName    String   @map("file_name")
+  uploadedById String  @map("uploaded_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  inquiryCase InquiryCase @relation(fields: [inquiryCaseId], references: [id], onDelete: Cascade)
+  uploadedBy  User        @relation("MedicalFileUploader", fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@index([inquiryCaseId])
+}
+
+model MatchRecommendation {
+  id           String   @id @default(cuid())
+  inquiryCaseId String  @map("inquiry_case_id")
+  doctorId     String   @map("doctor_id")
+  rank         Int      @default(0)
+  score        Decimal? @db.Decimal(5, 2)  // 0-100 match score
+  recommendedById String? @map("recommended_by_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  inquiryCase   InquiryCase @relation(fields: [inquiryCaseId], references: [id], onDelete: Cascade)
+  doctor        Doctor      @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  recommendedBy User?       @relation("MatchRecommender", fields: [recommendedById], references: [id], onDelete: SetNull)
+
+  @@unique([inquiryCaseId, doctorId])
+  @@index([inquiryCaseId])
+  @@index([doctorId])
+  @@index([recommendedById])
+}
+
+model ConsultationRequest {
+  id            String             @id @default(cuid())
+  patientId     String             @map("patient_id")
+  doctorId      String             @map("doctor_id")
+  inquiryCaseId String?            @map("inquiry_case_id") // optional link to an enquiry
+  scheduledAt   DateTime?          @map("scheduled_at")
+  proposedAt    DateTime?          @map("proposed_at")
+  status        ConsultationStatus @default(REQUESTED)
+  notes         String?            // Patient's reason / what they want to discuss
+  patientNotes  String?            @map("patient_notes")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  patient     PatientProfile @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor      Doctor         @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  inquiryCase InquiryCase?   @relation(fields: [inquiryCaseId], references: [id], onDelete: SetNull)
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([inquiryCaseId])
+  @@index([status])
+  @@index([scheduledAt])
+}
+
+model TravelPackage {
+  id           String        @id @default(cuid())
+  inquiryCaseId String       @map("inquiry_case_id")
+  name         String
+  slug         String
+  price        Decimal      @db.Decimal(12, 2)
+  currency     String       @default("USD")
+  description  String?
+  inclusions          String?      // JSON array or comma-separated
+  exclusions          String?
+  recommendedDoctors  String?      @map("recommended_doctors") // JSON array of doctor IDs
+  status              PackageStatus @default(DRAFT)
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  inquiryCase InquiryCase @relation(fields: [inquiryCaseId], references: [id], onDelete: Cascade)
+
+  @@unique([inquiryCaseId, slug])
+  @@index([inquiryCaseId])
+  @@index([status])
+}
+
+// ============ REVIEWS & ADMIN ============
+
+model Review {
+  id                String      @id @default(cuid())
+  patientId         String      @map("patient_id")
+  doctorId          String?     @map("doctor_id")
+  clinicId          String?     @map("clinic_id")
+  inquiryCaseId     String?     @map("inquiry_case_id")
+  rating            Int?        // Legacy 1-5, use overall when available
+  professionalism   Int?        @map("professionalism")   // 1-5
+  communication     Int?        @map("communication")     // 1-5
+  cleanliness       Int?        @map("cleanliness")      // 1-5
+  outcome           Int?        @map("outcome")          // 1-5
+  overall           Int?        @map("overall")          // 1-5
+  comment           String?
+  verifiedPatient   Boolean     @default(false) @map("verified_patient")
+  status            ReviewStatus @default(PENDING)
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
+
+  patient     PatientProfile @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor      Doctor?       @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  clinic      Clinic?      @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  inquiryCase InquiryCase?  @relation(fields: [inquiryCaseId], references: [id], onDelete: SetNull)
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([clinicId])
+  @@index([status])
+}
+
+model AdminNote {
+  id         String   @id @default(cuid())
+  entityType String   @map("entity_type")  // e.g. "InquiryCase", "Doctor", "Clinic"
+  entityId   String   @map("entity_id")
+  adminId    String   @map("admin_id")
+  content    String
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  admin User @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([entityType, entityId])
+  @@index([adminId])
+}
+
+// ============ PROVIDER ONBOARDING ============
+
+model ProviderOnboardingDraft {
+  id           String   @id @default(cuid())
+  userId       String   @unique @map("user_id")
+  providerType String   @map("provider_type")  // DOCTOR | CLINIC
+  currentStep  Int      @default(1) @map("current_step")
+  stepData     Json     @map("step_data")     // All step data as JSON
+  submittedAt  DateTime? @map("submitted_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model FacilityImage {
+  id        String   @id @default(cuid())
+  clinicId  String   @map("clinic_id")
+  fileKey   String   @map("file_key")
+  fileName  String   @map("file_name")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  clinic Clinic @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+
+  @@index([clinicId])
+}
+
+model Message {
+  id            String   @id @default(cuid())
+  inquiryCaseId String   @map("inquiry_case_id")
+  senderId      String   @map("sender_id")
+  isAdmin       Boolean  @default(false) @map("is_admin")
+  content       String
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  inquiryCase InquiryCase @relation(fields: [inquiryCaseId], references: [id], onDelete: Cascade)
+  sender      User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([inquiryCaseId])
+  @@index([senderId])
+  @@index([createdAt])
+}
